@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// ------------------- Основные функции -------------------
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -24,12 +23,10 @@ func main() {
 	fmt.Println("\nПосле добавления строки и столбца:")
 	PrintMatrix(matrix, headersRow, headersCol)
 
-	// Решение методом Жордана
 	fmt.Println("\nРешение методом Жордана:")
 	matrix = JordanMethod(matrix, headersRow, headersCol)
 }
 
-// ------------------- Создание матрицы -------------------
 
 func CreateMatrix(array [][]float64) ([][]float64, []string, []string) {
 	sizeRow, sizeCol := 4, 5
@@ -75,7 +72,6 @@ func getRandom() float64 {
 	return float64(rand.Intn(21) - 10)
 }
 
-// ------------------- Добавление/удаление -------------------
 
 func AddRow(matrix [][]float64, headersCol []string) ([][]float64, []string) {
 	newRow := make([]float64, len(matrix[0]))
@@ -99,7 +95,6 @@ func AddCell(matrix [][]float64, headersRow []string) ([][]float64, []string) {
 	return matrix, headersRow
 }
 
-// ------------------- Печать матрицы -------------------
 
 func PrintMatrix(matrix [][]float64, headersRow []string, headersCol []string) {
 	fmt.Printf("%-5s", "")
@@ -118,7 +113,6 @@ func PrintMatrix(matrix [][]float64, headersRow []string, headersCol []string) {
 	}
 }
 
-// ------------------- Метод Жордана -------------------
 
 func JordanMethod(arr [][]float64, headersRow, headersCol []string) [][]float64 {
 	rank := MatrixRank(arr)
@@ -137,7 +131,6 @@ func JordanMethod(arr [][]float64, headersRow, headersCol []string) [][]float64 
 	return arr
 }
 
-// Выбор разрешающего элемента
 func ChoosePivot(arr [][]float64, usedCols []int) (int, int) {
 	for i := 1; i < len(arr); i++ {
 		for j := 1; j < len(arr[i]); j++ {
@@ -158,7 +151,6 @@ func contains(arr []int, val int) bool {
 	return false
 }
 
-// Шаг метода Жордана с проверкой на деление на ноль
 func JordanStep(arr [][]float64, iAe, jAe int) [][]float64 {
 	allowEntry := arr[iAe][jAe]
 	if allowEntry == 0 {
@@ -189,9 +181,6 @@ func JordanStep(arr [][]float64, iAe, jAe int) [][]float64 {
 	return newArr
 }
 
-// ------------------- Доп. функции -------------------
-
-// Нахождение ранга матрицы
 func MatrixRank(A [][]float64) int {
 	m := len(A)
 	n := len(A[0])
@@ -221,7 +210,6 @@ func MatrixRank(A [][]float64) int {
 	return rank
 }
 
-// Нахождение детерминанта
 func Determinant(A [][]float64) float64 {
 	N := len(A)
 	B := make([][]float64, N)
