@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<title>Метод Жордана-Гаусса (полное исключение)</title>
+	<style>
+		body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 2em; background-color: #f4f7f9; color: #333; }
+		h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+		.main-container { display: flex; align-items: flex-start; gap: 20px; }
+		table { border-collapse: collapse; margin-top: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background-color: #fff; }
+		th, td { border: 1px solid #ddd; padding: 12px; text-align: center; min-width: 80px; }
+		th { background-color: #ecf0f1; font-weight: 600; }
+		td { background-color: #fff; }
+		input { width: 70px; text-align: center; border: 1px solid #ccc; padding: 8px; border-radius: 4px; transition: border-color 0.3s; }
+		input:focus { outline: none; border-color: #3498db; }
+		.button-container { display: flex; flex-direction: column; gap: 10px; }
+		.btn {
+			padding: 10px 18px;
+			font-size: 16px;
+			cursor: pointer;
+			border: none;
+			border-radius: 5px;
+			color: white;
+			font-weight: bold;
+			text-transform: uppercase;
+			transition: background-color 0.3s, transform 0.1s;
+			min-width: 150px;
+		}
+		.btn-solve { background-color: #2ecc71; }
+		.btn-random { background-color: #3498db; }
+		.btn-mod { background-color: #95a5a6; }
+		.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+		.btn-solve:hover { background-color: #27ae60; }
+		.btn-random:hover { background-color: #2980b9; }
+		.btn-mod:hover { background-color: #7f8c8d; }
+		.step { margin: 30px 0; border-top: 2px solid #bdc3c7; padding-top: 20px; }
+		.pivot { background-color: #f1c40f; font-weight: bold; }
+		.error { color: #e74c3c; font-weight: bold; margin-top: 15px; padding: 10px; background-color: #fdedec; border-left: 5px solid #e74c3c; }
+		.solution-vector {
+			margin-top: 20px;
+			font-size: 1.2em;
+			font-weight: bold;
+			background-color: #ecf0f1;
+			padding: 15px;
+			border-radius: 8px;
+			border: 1px solid #bdc3c7;
+		}
+	</style>
+</head>
+<body>
+<h2>Исходная матрица</h2>
+
+<form method="POST">
+<div class="main-container">
+	<div>
+		<table>
+		<thead>
+		<tr>
+			<th></th>
+			{{range .ColLabels}}
+				<th>{{formatHeader .}}</th>
+			{{end}}
+		</tr>
+		</thead>
+		<tbody>
+		{{range $i, $row := .Matrix}}
+		<tr>
+			<th>{{formatRowLabel (index $.RowLabels $i)}}=</th>
+			{{range $j, $val := $row}}
+				<td><input name="cell_{{$i}}_{{$j}}" value="{{printf "%.2f" $val}}"></td>
+			{{end}}
+		</tr>
+		{{end}}
+		</tbody>
+		</table>
+	</div>
+
+	<div class="button-container">
+		<button class="btn btn-solve" type="submit" name="action" value="solve">Решить</button>
+		<button class="btn btn-random" type="submit" name="action" value="random">Случайная</button>
+		<button class="btn btn-mod" type="submit" name="action" value="addrow">+ строка</button>
+		<button class="btn btn-mod" type="submit" name="action" value="delrow">- строка</button>
+		<button class="btn btn-mod" type="submit" name="action" value="addcol">+ столбец</button>
+		<button class="btn btn-mod" type="submit" name="action" value="delcol">- столбец</button>
+	</div>
+</div>
+</form>
+
+{{if .Error}}
+	<div class="error">Ошибка: {{.Error}}</div>
+{{end}}
+
+{{if .Steps}}
+<h2>Пошаговое решение:</h2>
+{{range .Steps}}
+	{{ $step := . }}
+	<div class="step">
+		<b>{{$step.Desc}}</b>
+		<table>
+		<thead>
+		<tr>
+			<th></th>
+			{{range $step.ColLabels}}
+				<th>{{formatHeader .}}</th>
+			{{end}}
+		</tr>
+		</thead>
+		<tbody>
+		{{range $i, $row := $step.Matrix}}
+		<tr>
+			<th>{{formatRowLabel (index $step.RowLabels $i)}}=</th>
+			{{range $j, $val := $row}}
+				<td class="{{if and (eq $i $step.PivotRow) (eq $j $step.PivotCol)}}pivot{{end}}">
+					{{formatFloat $val}}
+				</td>
+			{{end}}
+		</tr>
+		{{end}}
+		</tbody>
+		</table>
+	</div>
+{{end}}
+
+{{if .SolutionVector}}
+	<div class="solution-vector">
+		<h3>Вектор-решение:</h3>
+		<p>[{{range $i, $val := .SolutionVector}}{{if $i}}, {{end}}{{$val}}{{end}}]</p>
+	</div>
+{{end}}
+{{end}}
+
+</body>
+</html>
