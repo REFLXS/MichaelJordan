@@ -77,11 +77,40 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		case "solve":
 			steps, err := solveSteps(current, rowLabels, colLabels)
 			if err != nil {
+
+				pageData.Steps = steps
 				pageData.Error = err.Error()
 			} else {
 				pageData.Steps = steps
 				pageData.SolutionVector = getSolutionVector(steps)
 			}
+
+		case "preset1":
+			current = Matrix{
+				{4, 1, 2, 1, 0},
+				{6, 1, 1, 0, 1},
+				{10, 1, -1, -2, 3},
+			}
+			rowLabels = []string{"0", "0", "0"}
+			colLabels = []string{"1", "x1", "x2", "x3", "x4"}
+
+		case "preset2":
+			current = Matrix{
+				{5, 2, 3, 4},
+				{1, 2, 1, 2},
+				{10, 1, 3, 5},
+			}
+			rowLabels = []string{"0", "0", "0"}
+			colLabels = []string{"1", "x1", "x2", "x3"}
+
+		case "preset3":
+			current = Matrix{
+				{1, 0, 2, 4},
+				{5, 0, 2, 0},
+				{2, 1, 0, 0},
+			}
+			rowLabels = []string{"0", "0", "0"}
+			colLabels = []string{"1", "x1", "x2", "x3"}
 		}
 
 		pageData.Matrix = current

@@ -128,14 +128,59 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 	numIterations := int(math.Min(float64(len(workingMatrix)), float64(len(workingMatrix[0])-1)))
 
 	for k := 0; k < numIterations; k++ {
-		pivotRow, pivotCol := k, k+1
+		pivotRow, pivotCol := -1, -1
 
-		desc := fmt.Sprintf("Шаг %d: Разрешающий элемент M[%d][%d] = %.2f. Меняем местами '%s' и '%s'.",
-			k+1, pivotRow, pivotCol, workingMatrix[pivotRow][pivotCol], workingRowLabels[pivotRow], workingColLabels[pivotCol])
+		if math.Abs(workingMatrix[k][k+1]) > 1e-9 {
+			pivotRow, pivotCol = k, k+1
+		} else {
+			for i := k + 1; i < len(workingMatrix); i++ {
+				if math.Abs(workingMatrix[i][k+1]) > 1e-9 {
+					pivotRow, pivotCol = i, k+1
+					break
+				}
+			}
+			if pivotRow == -1 {
+				for i := k; i < len(workingMatrix); i++ {
+					for j := k + 1; j < len(workingMatrix[0]); j++ {
+						if math.Abs(workingMatrix[i][j]) > 1e-9 {
+							pivotRow, pivotCol = i, j
+							break
+						}
+					}
+					if pivotRow != -1 {
+						break
+					}
+				}
+			}
+		}
 
-		nextMatrix, nextRowLabels, nextColLabels, err := jordanStep(workingMatrix, workingRowLabels, workingColLabels, pivotRow, pivotCol)
+		if pivotRow == -1 || pivotCol == -1 {
+			steps = append(steps, Step{
+				Desc:      fmt.Sprintf("Алгоритм остановлен на шаге %d: разрешающий элемент не найден", k+1),
+				Matrix:    workingMatrix,
+				RowLabels: workingRowLabels,
+				ColLabels: workingColLabels,
+			})
+			return steps, nil
+		}
+
+		desc := fmt.Sprintf(
+			"Шаг %d: Разрешающий элемент M[%d][%d] = %.2f. Меняем местами '%s' и '%s'.",
+			k+1, pivotRow, pivotCol, workingMatrix[pivotRow][pivotCol],
+			workingRowLabels[pivotRow], workingColLabels[pivotCol],
+		)
+
+		nextMatrix, nextRowLabels, nextColLabels, err := jordanStep(
+			workingMatrix, workingRowLabels, workingColLabels, pivotRow, pivotCol,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка на шаге %d: %w", k+1, err)
+			steps = append(steps, Step{
+				Desc:      fmt.Sprintf("Алгоритм остановлен на шаге %d: %v", k+1, err),
+				Matrix:    workingMatrix,
+				RowLabels: workingRowLabels,
+				ColLabels: workingColLabels,
+			})
+			return steps, nil
 		}
 
 		steps = append(steps, Step{
@@ -160,12 +205,23 @@ func getSolutionVector(steps []Step) []string {
 		return nil
 	}
 	finalStep := steps[len(steps)-1]
-	solution := make([]string, 0)
+
+	solution := make(map[string]float64)
+
 	for i, rowLabel := range finalStep.RowLabels {
 		if strings.HasPrefix(rowLabel, "x") {
-			value := finalStep.Matrix[i][0]
-			solution = append(solution, fmt.Sprintf("%s = %.3f", rowLabel, value))
+			solution[rowLabel] = finalStep.Matrix[i][0]
 		}
 	}
-	return solution
+
+	result := []string{}
+	for j := 1; j < len(finalStep.ColLabels); j++ {
+		varName := fmt.Sprintf("x%d", j)
+		if val, ok := solution[varName]; ok {
+			result = append(result, fmt.Sprintf("%s = %.3f", varName, val))
+		} else {
+			result = append(result, fmt.Sprintf("%s = free", varName))
+		}
+	}
+	return result
 }
