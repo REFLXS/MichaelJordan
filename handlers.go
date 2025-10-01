@@ -77,7 +77,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		case "solve":
 			steps, err := solveSteps(current, rowLabels, colLabels)
 			if err != nil {
-
 				pageData.Steps = steps
 				pageData.Error = err.Error()
 			} else {

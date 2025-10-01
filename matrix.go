@@ -8,32 +8,6 @@ import (
 	"time"
 )
 
-type Matrix [][]float64
-
-type Step struct {
-	Desc      string
-	Matrix    Matrix
-	RowLabels []string
-	ColLabels []string
-	PivotRow  int
-	PivotCol  int
-}
-
-type PageData struct {
-	Matrix         Matrix
-	RowLabels      []string
-	ColLabels      []string
-	Steps          []Step
-	Error          string
-	SolutionVector []string
-}
-
-var (
-	current   Matrix
-	rowLabels []string
-	colLabels []string
-)
-
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	resetState(3, 3)
@@ -48,12 +22,10 @@ func resetState(rows, cols int) {
 		}
 	}
 	current = mat
-
 	rowLabels = make([]string, rows)
 	for i := 0; i < rows; i++ {
 		rowLabels[i] = "0"
 	}
-
 	colLabels = make([]string, cols+1)
 	colLabels[0] = "1"
 	for i := 1; i < cols+1; i++ {
@@ -73,123 +45,111 @@ func cloneSlice(s []string) []string {
 	return append([]string{}, s...)
 }
 
-func jordanStep(inMatrix Matrix, inRowLabels, inColLabels []string, pivotRow, pivotCol int) (Matrix, []string, []string, error) {
-	if pivotRow < 0 || pivotRow >= len(inMatrix) || pivotCol < 0 || pivotCol >= len(inMatrix[0]) {
-		return nil, nil, nil, fmt.Errorf("неверные координаты разрешающего элемента")
+func MatrixRank(a Matrix) int {
+	rows := len(a)
+	if rows == 0 {
+		return 0
 	}
+	cols := len(a[0])
 
-	pivot := inMatrix[pivotRow][pivotCol]
-	if math.Abs(pivot) < 1e-9 {
-		return nil, nil, nil, fmt.Errorf("разрешающий элемент в [%d, %d] равен нулю", pivotRow, pivotCol)
-	}
+	return int(math.Min(float64(rows), float64(cols-1)))
+}
 
-	outMatrix := cloneMatrix(inMatrix)
-	outRowLabels := cloneSlice(inRowLabels)
-	outColLabels := cloneSlice(inColLabels)
-
-	outRowLabels[pivotRow], outColLabels[pivotCol] = outColLabels[pivotCol], outRowLabels[pivotRow]
-	tempMatrix := cloneMatrix(inMatrix)
-	outMatrix[pivotRow][pivotCol] = 1.0 / pivot
-
-	for j := 0; j < len(tempMatrix[0]); j++ {
-		if j != pivotCol {
-			outMatrix[pivotRow][j] = -tempMatrix[pivotRow][j] / pivot
+func allowEntry(arr []float64, arr_ae []int) int {
+	for i := 1; i < len(arr); i++ {
+		skipped := false
+		for _, v := range arr_ae {
+			if i == v {
+				skipped = true
+				break
+			}
 		}
-	}
-
-	for i := 0; i < len(tempMatrix); i++ {
-		if i != pivotRow {
-			outMatrix[i][pivotCol] = -tempMatrix[i][pivotCol] / pivot
-		}
-	}
-
-	for i := 0; i < len(tempMatrix); i++ {
-		if i == pivotRow {
+		if skipped {
 			continue
 		}
-		for j := 0; j < len(tempMatrix[0]); j++ {
-			if j == pivotCol {
-				continue
+		if math.Abs(arr[i]) > 1e-9 {
+			return i
+		}
+	}
+	return -1
+}
+
+func JordanovaException(arr Matrix, rowLabels, colLabels []string, i_ae, j_ae int) (Matrix, []string, []string) {
+	allow_entry := arr[i_ae][j_ae]
+	if math.Abs(allow_entry) < 1e-12 {
+		return arr, rowLabels, colLabels
+	}
+
+	array := make(Matrix, len(arr))
+	newRowLabels := cloneSlice(rowLabels)
+	newColLabels := cloneSlice(colLabels)
+
+	newRowLabels[i_ae], newColLabels[j_ae] = colLabels[j_ae], rowLabels[i_ae]
+
+	for i := 0; i < len(arr); i++ {
+		array[i] = make([]float64, len(arr[i]))
+		for j := 0; j < len(arr[i]); j++ {
+			if i == i_ae && j == j_ae {
+				array[i][j] = 1.0 / allow_entry
+			} else if i == i_ae && j != j_ae {
+				array[i][j] = -arr[i][j] / allow_entry
+			} else if j == j_ae && i != i_ae {
+				array[i][j] = arr[i][j] / allow_entry
+			} else {
+				array[i][j] = (arr[i][j]*allow_entry - arr[i][j_ae]*arr[i_ae][j]) / allow_entry
 			}
-			outMatrix[i][j] = tempMatrix[i][j] - (tempMatrix[i][pivotCol]*tempMatrix[pivotRow][j])/pivot
+
+			array[i][j] = math.Round(array[i][j]*1000) / 1000
 		}
 	}
 
-	return outMatrix, outRowLabels, outColLabels, nil
+	return array, newRowLabels, newColLabels
 }
 
 func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 	steps := []Step{}
-
 	workingMatrix := cloneMatrix(a)
 	workingRowLabels := cloneSlice(rLabels)
 	workingColLabels := cloneSlice(cLabels)
 
-	numIterations := int(math.Min(float64(len(workingMatrix)), float64(len(workingMatrix[0])-1)))
+	rank := MatrixRank(workingMatrix)
+	arr_ae := []int{}
 
-	for k := 0; k < numIterations; k++ {
-		pivotRow, pivotCol := -1, -1
+	for i := 1; i <= rank; i++ {
+		j := allowEntry(workingMatrix[i-1], arr_ae)
+		if j == -1 {
+			found := false
+			for k := i; k < len(workingMatrix); k++ {
+				j = allowEntry(workingMatrix[k], arr_ae)
+				if j != -1 {
 
-		if math.Abs(workingMatrix[k][k+1]) > 1e-9 {
-			pivotRow, pivotCol = k, k+1
-		} else {
-			for i := k + 1; i < len(workingMatrix); i++ {
-				if math.Abs(workingMatrix[i][k+1]) > 1e-9 {
-					pivotRow, pivotCol = i, k+1
+					workingMatrix[i-1], workingMatrix[k] = workingMatrix[k], workingMatrix[i-1]
+					workingRowLabels[i-1], workingRowLabels[k] = workingRowLabels[k], workingRowLabels[i-1]
+					found = true
 					break
 				}
 			}
-			if pivotRow == -1 {
-				for i := k; i < len(workingMatrix); i++ {
-					for j := k + 1; j < len(workingMatrix[0]); j++ {
-						if math.Abs(workingMatrix[i][j]) > 1e-9 {
-							pivotRow, pivotCol = i, j
-							break
-						}
-					}
-					if pivotRow != -1 {
-						break
-					}
-				}
+			if !found {
+				break
 			}
 		}
 
-		if pivotRow == -1 || pivotCol == -1 {
-			steps = append(steps, Step{
-				Desc:      fmt.Sprintf("Алгоритм остановлен на шаге %d: разрешающий элемент не найден", k+1),
-				Matrix:    workingMatrix,
-				RowLabels: workingRowLabels,
-				ColLabels: workingColLabels,
-			})
-			return steps, nil
-		}
+		arr_ae = append(arr_ae, j)
 
-		desc := fmt.Sprintf(
-			"Шаг %d: Разрешающий элемент M[%d][%d] = %.2f. Меняем местами '%s' и '%s'.",
-			k+1, pivotRow, pivotCol, workingMatrix[pivotRow][pivotCol],
-			workingRowLabels[pivotRow], workingColLabels[pivotCol],
-		)
+		desc := fmt.Sprintf("Этап №%d. Разрешающий элемент: %.3f[%d][%d]",
+			i, workingMatrix[i-1][j], i, j)
 
-		nextMatrix, nextRowLabels, nextColLabels, err := jordanStep(
-			workingMatrix, workingRowLabels, workingColLabels, pivotRow, pivotCol,
+		nextMatrix, nextRowLabels, nextColLabels := JordanovaException(
+			workingMatrix, workingRowLabels, workingColLabels, i-1, j,
 		)
-		if err != nil {
-			steps = append(steps, Step{
-				Desc:      fmt.Sprintf("Алгоритм остановлен на шаге %d: %v", k+1, err),
-				Matrix:    workingMatrix,
-				RowLabels: workingRowLabels,
-				ColLabels: workingColLabels,
-			})
-			return steps, nil
-		}
 
 		steps = append(steps, Step{
 			Desc:      desc,
-			Matrix:    nextMatrix,
-			RowLabels: nextRowLabels,
-			ColLabels: nextColLabels,
-			PivotRow:  pivotRow,
-			PivotCol:  pivotCol,
+			Matrix:    cloneMatrix(nextMatrix),
+			RowLabels: cloneSlice(nextRowLabels),
+			ColLabels: cloneSlice(nextColLabels),
+			PivotRow:  i - 1,
+			PivotCol:  j,
 		})
 
 		workingMatrix = nextMatrix
@@ -200,28 +160,82 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 	return steps, nil
 }
 
+func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string {
+	result := []string{}
+
+	for i := 1; i <= rank; i++ {
+
+		if !strings.HasPrefix(rowLabels[i-1], "x") {
+			continue
+		}
+
+		equation := fmt.Sprintf("%s = ", rowLabels[i-1])
+		constant := 0.0
+		terms := []string{}
+
+		for j := 0; j < len(colLabels); j++ {
+			coef := arr[i-1][j]
+			lbl := colLabels[j]
+
+			if lbl == "1" {
+				constant += coef
+				continue
+			}
+
+			if strings.HasPrefix(lbl, "x") {
+				isBasic := false
+				for _, rl := range rowLabels {
+					if rl == lbl {
+						isBasic = true
+						break
+					}
+				}
+				if isBasic {
+					continue
+				}
+				if math.Abs(coef) > 1e-9 {
+					sign := "+"
+					if coef < 0 {
+						sign = "-"
+					}
+					term := fmt.Sprintf(" %s %.3f%s", sign, math.Abs(coef), lbl)
+					terms = append(terms, term)
+				}
+			}
+		}
+
+		if len(terms) == 0 {
+			equation += fmt.Sprintf("%.3f", constant)
+		} else {
+
+			if math.Abs(constant) > 1e-9 {
+				equation += fmt.Sprintf("%.3f", constant)
+			} else {
+				first := strings.TrimPrefix(terms[0], " + ")
+				first = strings.TrimPrefix(first, " - ")
+				if strings.HasPrefix(terms[0], " - ") {
+					first = "-" + first
+				}
+				equation += first
+				terms = terms[1:]
+			}
+			for _, t := range terms {
+				equation += t
+			}
+		}
+
+		result = append(result, equation)
+	}
+
+	return result
+}
+
 func getSolutionVector(steps []Step) []string {
 	if len(steps) == 0 {
 		return nil
 	}
 	finalStep := steps[len(steps)-1]
+	rank := len(finalStep.Matrix)
 
-	solution := make(map[string]float64)
-
-	for i, rowLabel := range finalStep.RowLabels {
-		if strings.HasPrefix(rowLabel, "x") {
-			solution[rowLabel] = finalStep.Matrix[i][0]
-		}
-	}
-
-	result := []string{}
-	for j := 1; j < len(finalStep.ColLabels); j++ {
-		varName := fmt.Sprintf("x%d", j)
-		if val, ok := solution[varName]; ok {
-			result = append(result, fmt.Sprintf("%s = %.3f", varName, val))
-		} else {
-			result = append(result, fmt.Sprintf("%s = free", varName))
-		}
-	}
-	return result
+	return getEguations(finalStep.Matrix, finalStep.RowLabels, finalStep.ColLabels, rank)
 }
