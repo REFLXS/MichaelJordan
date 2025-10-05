@@ -82,6 +82,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				pageData.Steps = steps
 				pageData.SolutionVector = getSolutionVector(steps)
+
+				if len(steps) > 0 {
+					final := steps[len(steps)-1]
+					pageData.FinalMatrix = final.Matrix
+					pageData.FinalRowLabels = final.RowLabels
+					pageData.FinalColLabels = final.ColLabels
+				}
 			}
 
 		case "preset1":

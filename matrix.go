@@ -157,6 +157,21 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 		workingColLabels = nextColLabels
 	}
 
+	if len(steps) > 0 {
+		finalMatrix, finalColLabels := removeZeroColumns(workingMatrix, workingColLabels)
+
+		if len(finalMatrix[0]) != len(workingMatrix[0]) {
+			steps = append(steps, Step{
+				Desc:      "Итоговая матрица",
+				Matrix:    finalMatrix,
+				RowLabels: cloneSlice(workingRowLabels),
+				ColLabels: finalColLabels,
+				PivotRow:  -1,
+				PivotCol:  -1,
+			})
+		}
+	}
+
 	return steps, nil
 }
 
@@ -238,4 +253,35 @@ func getSolutionVector(steps []Step) []string {
 	rank := len(finalStep.Matrix)
 
 	return getEguations(finalStep.Matrix, finalStep.RowLabels, finalStep.ColLabels, rank)
+}
+
+func removeZeroColumns(matrix Matrix, colLabels []string) (Matrix, []string) {
+	if len(matrix) == 0 || len(colLabels) == 0 {
+		return matrix, colLabels
+	}
+
+	rows := len(matrix)
+	cols := len(colLabels)
+	keep := []int{}
+
+	for j := 0; j < cols; j++ {
+		if colLabels[j] != "0" {
+			keep = append(keep, j)
+		}
+	}
+
+	newMat := make(Matrix, rows)
+	for i := range matrix {
+		newMat[i] = make([]float64, len(keep))
+		for k, j := range keep {
+			newMat[i][k] = matrix[i][j]
+		}
+	}
+
+	newLabels := make([]string, len(keep))
+	for k, j := range keep {
+		newLabels[k] = colLabels[j]
+	}
+
+	return newMat, newLabels
 }

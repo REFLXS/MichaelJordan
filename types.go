@@ -18,6 +18,9 @@ type PageData struct {
 	Steps          []Step
 	Error          string
 	SolutionVector []string
+	FinalMatrix    Matrix
+	FinalRowLabels []string
+	FinalColLabels []string
 }
 
 var (
