@@ -127,7 +127,11 @@
 {{if .SolutionVector}}
 	<div class="solution-vector">
 		<h3>Вектор-решение:</h3>
-		<p>[{{range $i, $val := .SolutionVector}}{{if $i}}, {{end}}{{$val}}{{end}}]</p>
+		<div class="equations">
+			{{range $i, $val := .SolutionVector}}
+				<p>{{$val}}</p>
+			{{end}}
+		</div>
 	</div>
 {{end}}
 {{end}}

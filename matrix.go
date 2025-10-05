@@ -157,19 +157,17 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 		workingColLabels = nextColLabels
 	}
 
-	if len(steps) > 0 {
-		finalMatrix, finalColLabels := removeZeroColumns(workingMatrix, workingColLabels)
+	finalMatrix, finalRowLabels, finalColLabels := removeZeroColumnsAndRows(workingMatrix, workingRowLabels, workingColLabels)
 
-		if len(finalMatrix[0]) != len(workingMatrix[0]) {
-			steps = append(steps, Step{
-				Desc:      "Итоговая матрица",
-				Matrix:    finalMatrix,
-				RowLabels: cloneSlice(workingRowLabels),
-				ColLabels: finalColLabels,
-				PivotRow:  -1,
-				PivotCol:  -1,
-			})
-		}
+	if len(finalMatrix) != len(workingMatrix) || len(finalMatrix[0]) != len(workingMatrix[0]) {
+		steps = append(steps, Step{
+			Desc:      "Итоговая матрица",
+			Matrix:    finalMatrix,
+			RowLabels: finalRowLabels,
+			ColLabels: finalColLabels,
+			PivotRow:  -1,
+			PivotCol:  -1,
+		})
 	}
 
 	return steps, nil
@@ -179,7 +177,6 @@ func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string 
 	result := []string{}
 
 	for i := 1; i <= rank; i++ {
-
 		if !strings.HasPrefix(rowLabels[i-1], "x") {
 			continue
 		}
@@ -209,11 +206,13 @@ func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string 
 					continue
 				}
 				if math.Abs(coef) > 1e-9 {
+					// Заменяем x на t в параметрических переменных
+					paramName := strings.Replace(lbl, "x", "t", 1)
 					sign := "+"
 					if coef < 0 {
 						sign = "-"
 					}
-					term := fmt.Sprintf(" %s %.3f%s", sign, math.Abs(coef), lbl)
+					term := fmt.Sprintf(" %s %.3f%s", sign, math.Abs(coef), paramName)
 					terms = append(terms, term)
 				}
 			}
@@ -222,10 +221,10 @@ func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string 
 		if len(terms) == 0 {
 			equation += fmt.Sprintf("%.3f", constant)
 		} else {
-
 			if math.Abs(constant) > 1e-9 {
 				equation += fmt.Sprintf("%.3f", constant)
 			} else {
+				// Обрабатываем первый терм без начального пробела и знака
 				first := strings.TrimPrefix(terms[0], " + ")
 				first = strings.TrimPrefix(first, " - ")
 				if strings.HasPrefix(terms[0], " - ") {
@@ -255,33 +254,52 @@ func getSolutionVector(steps []Step) []string {
 	return getEguations(finalStep.Matrix, finalStep.RowLabels, finalStep.ColLabels, rank)
 }
 
-func removeZeroColumns(matrix Matrix, colLabels []string) (Matrix, []string) {
+func removeZeroColumnsAndRows(matrix Matrix, rowLabels, colLabels []string) (Matrix, []string, []string) {
 	if len(matrix) == 0 || len(colLabels) == 0 {
-		return matrix, colLabels
+		return matrix, rowLabels, colLabels
 	}
 
 	rows := len(matrix)
 	cols := len(colLabels)
-	keep := []int{}
 
+	keepCols := []int{}
 	for j := 0; j < cols; j++ {
 		if colLabels[j] != "0" {
-			keep = append(keep, j)
+			keepCols = append(keepCols, j)
 		}
 	}
 
-	newMat := make(Matrix, rows)
-	for i := range matrix {
-		newMat[i] = make([]float64, len(keep))
-		for k, j := range keep {
-			newMat[i][k] = matrix[i][j]
+	keepRows := []int{}
+	for i := 0; i < rows; i++ {
+		isZeroRow := true
+		for _, j := range keepCols {
+			if math.Abs(matrix[i][j]) > 1e-9 {
+				isZeroRow = false
+				break
+			}
+		}
+		if !isZeroRow {
+			keepRows = append(keepRows, i)
 		}
 	}
 
-	newLabels := make([]string, len(keep))
-	for k, j := range keep {
-		newLabels[k] = colLabels[j]
+	newMat := make(Matrix, len(keepRows))
+	for newI, oldI := range keepRows {
+		newMat[newI] = make([]float64, len(keepCols))
+		for newJ, oldJ := range keepCols {
+			newMat[newI][newJ] = matrix[oldI][oldJ]
+		}
 	}
 
-	return newMat, newLabels
+	newRowLabels := make([]string, len(keepRows))
+	for k, i := range keepRows {
+		newRowLabels[k] = rowLabels[i]
+	}
+
+	newColLabels := make([]string, len(keepCols))
+	for k, j := range keepCols {
+		newColLabels[k] = colLabels[j]
+	}
+
+	return newMat, newRowLabels, newColLabels
 }
