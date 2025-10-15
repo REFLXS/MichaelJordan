@@ -122,7 +122,6 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 			for k := i; k < len(workingMatrix); k++ {
 				j = allowEntry(workingMatrix[k], arr_ae)
 				if j != -1 {
-
 					workingMatrix[i-1], workingMatrix[k] = workingMatrix[k], workingMatrix[i-1]
 					workingRowLabels[i-1], workingRowLabels[k] = workingRowLabels[k], workingRowLabels[i-1]
 					found = true
@@ -157,7 +156,15 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 		workingColLabels = nextColLabels
 	}
 
+	if err := checkFinalZeroEquations(workingMatrix, workingRowLabels); err != nil {
+		return steps, err
+	}
+
 	finalMatrix, finalRowLabels, finalColLabels := removeZeroColumnsAndRows(workingMatrix, workingRowLabels, workingColLabels)
+
+	if err := checkFinalZeroEquations(finalMatrix, finalRowLabels); err != nil {
+		return steps, err
+	}
 
 	if len(finalMatrix) != len(workingMatrix) || len(finalMatrix[0]) != len(workingMatrix[0]) {
 		steps = append(steps, Step{
@@ -173,48 +180,70 @@ func solveSteps(a Matrix, rLabels, cLabels []string) ([]Step, error) {
 	return steps, nil
 }
 
+func checkFinalZeroEquations(matrix Matrix, rowLabels []string) error {
+	for i, row := range matrix {
+		if rowLabels[i] == "0" {
+			allZero := true
+			for j := 1; j < len(row); j++ {
+				if math.Abs(row[j]) > 1e-9 {
+					allZero = false
+					break
+				}
+			}
+			if allZero && math.Abs(row[0]) > 1e-9 {
+				return fmt.Errorf("система несовместна: получено уравнение 0 = %.3f", row[0])
+			}
+		}
+	}
+	return nil
+}
+
 func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string {
 	result := []string{}
 
-	for i := 1; i <= rank; i++ {
-		if !strings.HasPrefix(rowLabels[i-1], "x") {
+	basicVars := make(map[string]bool)
+	for _, rl := range rowLabels {
+		if strings.HasPrefix(rl, "x") {
+			basicVars[rl] = true
+		}
+	}
+
+	freeVars := []string{}
+	for _, cl := range colLabels {
+		if strings.HasPrefix(cl, "x") && !basicVars[cl] && cl != "1" {
+			freeVars = append(freeVars, cl)
+		}
+	}
+
+	for i := 0; i < rank; i++ {
+		if !strings.HasPrefix(rowLabels[i], "x") {
 			continue
 		}
 
-		equation := fmt.Sprintf("%s = ", rowLabels[i-1])
-		constant := 0.0
+		equation := fmt.Sprintf("%s = ", rowLabels[i])
+		constant := arr[i][0]
 		terms := []string{}
 
-		for j := 0; j < len(colLabels); j++ {
-			coef := arr[i-1][j]
-			lbl := colLabels[j]
-
-			if lbl == "1" {
-				constant += coef
+		for j := 1; j < len(colLabels); j++ {
+			if !strings.HasPrefix(colLabels[j], "x") {
 				continue
 			}
 
-			if strings.HasPrefix(lbl, "x") {
-				isBasic := false
-				for _, rl := range rowLabels {
-					if rl == lbl {
-						isBasic = true
-						break
-					}
+			if basicVars[colLabels[j]] {
+				continue
+			}
+
+			coef := arr[i][j]
+			if math.Abs(coef) > 1e-9 {
+				paramName := strings.Replace(colLabels[j], "x", "t", 1)
+				sign := "+"
+				absCoef := math.Abs(coef)
+				if coef < 0 {
+					sign = "-"
 				}
-				if isBasic {
-					continue
-				}
-				if math.Abs(coef) > 1e-9 {
-					// Заменяем x на t в параметрических переменных
-					paramName := strings.Replace(lbl, "x", "t", 1)
-					sign := "+"
-					if coef < 0 {
-						sign = "-"
-					}
-					term := fmt.Sprintf(" %s %.3f%s", sign, math.Abs(coef), paramName)
-					terms = append(terms, term)
-				}
+
+				term := fmt.Sprintf(" %s %.3f·%s", sign, absCoef, paramName)
+				terms = append(terms, term)
 			}
 		}
 
@@ -223,22 +252,25 @@ func getEguations(arr Matrix, rowLabels, colLabels []string, rank int) []string 
 		} else {
 			if math.Abs(constant) > 1e-9 {
 				equation += fmt.Sprintf("%.3f", constant)
-			} else {
-				// Обрабатываем первый терм без начального пробела и знака
-				first := strings.TrimPrefix(terms[0], " + ")
-				first = strings.TrimPrefix(first, " - ")
-				if strings.HasPrefix(terms[0], " - ") {
-					first = "-" + first
-				}
-				equation += first
-				terms = terms[1:]
 			}
-			for _, t := range terms {
-				equation += t
+			for _, term := range terms {
+				equation += term
+			}
+			if math.Abs(constant) < 1e-9 && len(equation) > 0 {
+				if strings.HasPrefix(equation, rowLabels[i]+" =  +") {
+					equation = strings.Replace(equation, rowLabels[i]+" =  +", rowLabels[i]+" = ", 1)
+				} else if strings.HasPrefix(equation, rowLabels[i]+" =  -") {
+					equation = strings.Replace(equation, rowLabels[i]+" =  -", rowLabels[i]+" = -", 1)
+				}
 			}
 		}
 
 		result = append(result, equation)
+	}
+
+	for _, fv := range freeVars {
+		paramName := strings.Replace(fv, "x", "t", 1)
+		result = append(result, fmt.Sprintf("%s = %s", fv, paramName))
 	}
 
 	return result

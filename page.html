@@ -85,6 +85,7 @@
 		<button class="btn btn-mod" type="submit" name="action" value="preset1">Матрица 1</button>
 		<button class="btn btn-mod" type="submit" name="action" value="preset2">Матрица 2</button>
 		<button class="btn btn-mod" type="submit" name="action" value="preset3">Матрица 3</button>
+		<button class="btn btn-mod" type="submit" name="action" value="preset4">Матрица 4</button>
 	</div>
 </div>
 </form>
@@ -125,13 +126,13 @@
 {{end}}
 
 {{if .SolutionVector}}
-	<div class="solution-vector">
-		<h3>Вектор-решение:</h3>
-		<div class="equations">
-			{{range $i, $val := .SolutionVector}}
-				<p>{{$val}}</p>
-			{{end}}
-		</div>
-	</div>
+    <div class="solution-vector">
+        <h3>Решение системы:</h3>
+        <div class="equations">
+            {{range .SolutionVector}}
+                <p>{{.}}</p>
+            {{end}}
+        </div>
+    </div>
 {{end}}
 {{end}}

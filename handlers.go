@@ -102,21 +102,30 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		case "preset2":
 			current = Matrix{
-				{5, 2, 3, 4},
-				{1, 2, 1, 2},
-				{10, 1, 3, 5},
+				{1, 1, 2, 3},
+				{1, 1, 1, 1},
+				{2, 1, 0, -1},
 			}
 			rowLabels = []string{"0", "0", "0"}
 			colLabels = []string{"1", "x1", "x2", "x3"}
 
 		case "preset3":
 			current = Matrix{
-				{1, 0, 2, 4},
-				{5, 0, 2, 0},
-				{2, 1, 0, 0},
+				{5, 1, 3, -4},
+				{0, -1, 1, 1},
+				{9, 2, 1, 1},
 			}
 			rowLabels = []string{"0", "0", "0"}
 			colLabels = []string{"1", "x1", "x2", "x3"}
+
+		case "preset4":
+			current = Matrix{
+				{2, -2, 1, 1, 0, 0},
+				{8, -1, 2, 0, -4, 0},
+				{5, 1, 1, 0, 0, 5},
+			}
+			rowLabels = []string{"0", "0", "0"}
+			colLabels = []string{"1", "x1", "x2", "x3", "x4", "x5"}
 		}
 
 		pageData.Matrix = current
